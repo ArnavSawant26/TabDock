@@ -30,9 +30,9 @@
       thumb.style.top = `${scroll.scrollTop / max * (th - h)}px`;
     };
 
-    const resetDockEffect = () => scroll.querySelectorAll('.tab').forEach((tab) => {
-      tab.style.transform = '';
-      tab.style.zIndex = '';
+    const resetDockEffect = () => scroll.querySelectorAll('.tab-item').forEach((item) => {
+      item.style.transform = '';
+      item.style.zIndex = '';
     });
 
     const applyDockEffect = (clientY) => {
@@ -40,11 +40,11 @@
         resetDockEffect();
         return;
       }
-      scroll.querySelectorAll('.tab').forEach((tab) => {
-        const r = tab.getBoundingClientRect();
+      scroll.querySelectorAll('.tab-item').forEach((item) => {
+        const r = item.getBoundingClientRect();
         const t = Math.max(0, 1 - Math.abs(clientY - (r.top + r.height / 2)) / 60);
-        tab.style.transform = `translateX(${6 * t}px) scale(${1 + .38 * t})`;
-        tab.style.zIndex = t > .5 ? '5' : '1';
+        item.style.transform = `translateX(${6 * t}px) scale(${1 + .38 * t})`;
+        item.style.zIndex = t > .5 ? '5' : '1';
       });
     };
 
@@ -54,6 +54,7 @@
       const item = document.createElement('div');
       item.className = 'tab-item';
       item.dataset.id = String(tab.id);
+      item._tab = tab;
 
       const button = document.createElement('button');
       button.className = `tab${tab.active ? ' active' : ''}`;
@@ -70,16 +71,21 @@
         favicon.className = 'tab-favicon';
         favicon.alt = '';
         favicon.src = tab.favIconUrl;
-        favicon.addEventListener('load', () => button.classList.add('has-favicon'));
+        const markFavicon = () => {
+          if (favicon.naturalWidth > 0) button.classList.add('has-favicon');
+        };
+        favicon.addEventListener('load', markFavicon);
         favicon.addEventListener('error', () => { favicon.remove(); button.classList.remove('has-favicon'); });
+        if (favicon.complete) markFavicon();
         button.prepend(favicon);
       }
 
       button.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (tab.active) return;
+        const currentTab = item._tab || tab;
+        if (currentTab.active) return;
         retainOpenUntil = Date.now() + 1000;
-        bridge.activateTab(tab.id).catch(reportError);
+        bridge.activateTab(currentTab.id).catch(reportError);
       });
 
       const close = document.createElement('button');
@@ -90,7 +96,8 @@
       close.textContent = '×';
       close.addEventListener('click', (event) => {
         event.stopPropagation();
-        bridge.closeTab(tab.id).catch(reportError);
+        const currentTab = item._tab || tab;
+        bridge.closeTab(currentTab.id).catch(reportError);
       });
 
       item.append(button, close);
@@ -99,6 +106,7 @@
 
     function updateTabElement(item, tab) {
       item.dataset.id = String(tab.id);
+      item._tab = tab;
       const button = item.querySelector('.tab');
       if (button) {
         button.className = `tab${tab.active ? ' active' : ''}`;
@@ -114,12 +122,19 @@
             favicon = document.createElement('img');
             favicon.className = 'tab-favicon';
             favicon.alt = '';
-            favicon.addEventListener('load', () => button.classList.add('has-favicon'));
+            const markFavicon = () => {
+              if (favicon.naturalWidth > 0) button.classList.add('has-favicon');
+            };
+            favicon.addEventListener('load', markFavicon);
             favicon.addEventListener('error', () => { favicon.remove(); button.classList.remove('has-favicon'); });
             button.prepend(favicon);
           }
           if (favicon.src !== tab.favIconUrl) {
+            button.classList.remove('has-favicon');
             favicon.src = tab.favIconUrl;
+          }
+          if (favicon.complete && favicon.naturalWidth > 0) {
+            button.classList.add('has-favicon');
           }
         } else if (favicon) {
           favicon.remove();
