@@ -16,6 +16,7 @@
     if (message?.type === 'tabs-updated') {
       uiController?.renderTabs(message.tabs);
       uiController?.setDockOpen(message.dockOpen);
+      if (message.dockPosition) uiController?.setPosition(message.dockPosition);
     }
   });
 
@@ -43,11 +44,13 @@
         activateTab: (tabId) => requestBackground({ type: 'activate-tab', tabId }),
         createTab: () => requestBackground({ type: 'create-tab' }),
         closeTab: (tabId) => requestBackground({ type: 'close-tab', tabId }),
-        setDockOpen: (open) => requestBackground({ type: 'set-dock-open', open })
+        setDockOpen: (open) => requestBackground({ type: 'set-dock-open', open }),
+        setPosition: (position) => requestBackground({ type: 'set-dock-pos', position })
       });
       const response = await requestBackground({ type: 'get-tabs' });
       uiController.renderTabs(response.tabs);
       uiController.setDockOpen(response.dockOpen);
+      if (response.dockPosition) uiController.setPosition(response.dockPosition);
     } catch (error) {
       host.remove();
       console.error('Fullscreen Tab Manager could not mount.', error);

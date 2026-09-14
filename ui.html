@@ -1,9 +1,12 @@
-<div class="ftm-shell">
+<div class="ftm-shell" data-position="left">
   <div class="edge-zone" id="edgeZone" aria-label="Open tab manager">
     <div class="edge-line"></div>
   </div>
 
   <aside class="sidebar" id="sidebar" aria-label="Tab manager">
+    <div class="drag-handle" id="dragHandle" title="Drag to reposition dock" aria-label="Drag to reposition dock">
+      <div class="drag-grip"></div>
+    </div>
     <div class="sidebar-row">
       <div class="slider-track" id="sliderTrack" aria-hidden="true">
         <div class="slider-thumb" id="sliderThumb"></div>
@@ -13,4 +16,19 @@
     <div class="divider"></div>
     <button class="add-btn" id="addBtn" title="New tab" aria-label="New tab">+</button>
   </aside>
+
+  <div class="drag-overlay" id="dragOverlay" aria-hidden="true">
+    <div class="drop-zone drop-left" data-target="left">
+      <span class="drop-icon">◧</span>
+      <span class="drop-label">Left Dock</span>
+    </div>
+    <div class="drop-zone drop-bottom" data-target="bottom">
+      <span class="drop-icon">◨</span>
+      <span class="drop-label">Bottom Dock</span>
+    </div>
+    <div class="drop-zone drop-right" data-target="right">
+      <span class="drop-icon">◨</span>
+      <span class="drop-label">Right Dock</span>
+    </div>
+  </div>
 </div>
