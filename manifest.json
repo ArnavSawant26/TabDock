@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Fullscreen Tab Manager",
+  "version": "0.1.0",
+  "description": "A left-edge fullscreen tab dock.",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["tabs", "storage"],
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js", "ui.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["ui.html", "ui.css"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ]
+}
