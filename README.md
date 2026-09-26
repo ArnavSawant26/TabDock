@@ -1,14 +1,27 @@
 # ⚓ TabDock
 
-> A sleek, macOS Dock-inspired fullscreen tab manager for Google Chrome with fluid magnification, dynamic edge repositioning, and seamless tab synchronization.
+> A sleek, macOS Dock-inspired fullscreen tab manager compatible with **all Chromium-based browsers** (Google Chrome, Microsoft Edge, Brave, Opera, Arc, Vivaldi, etc.) featuring fluid magnification, dynamic edge repositioning, and seamless tab synchronization.
 
 ---
 
 ## ✨ Overview
 
-**TabDock** transforms how you navigate and manage your open browser tabs. Designed with a modern glassmorphic aesthetic and fluid spring-like magnification, TabDock injects a non-intrusive, isolated dock into any web page.
+**TabDock** transforms how you navigate and manage your open browser tabs. Designed with a modern glassmorphic aesthetic and fluid spring-like magnification, TabDock injects a non-intrusive, isolated dock into any web page across **all Chromium-based browsers**.
 
 Move seamlessly between tabs, create new ones, close background tabs, and snap the dock to your preferred screen edge (**Left**, **Bottom**, or **Right**) on the fly.
+
+---
+
+## 🌐 Browser Compatibility
+
+TabDock is fully compatible with **any Chromium-based browser** supporting Manifest V3, including:
+- **Google Chrome**
+- **Microsoft Edge**
+- **Brave Browser**
+- **Arc Browser**
+- **Opera / Opera GX**
+- **Vivaldi**
+- Any other Chromium-based web browser
 
 ---
 
@@ -40,7 +53,7 @@ Move seamlessly between tabs, create new ones, close background tabs, and snap t
 ## 🛠️ Installation & Setup
 
 ### Prerequisites
-- Google Chrome, Brave, Microsoft Edge, or any Chromium-based browser supporting Manifest V3.
+- Any **Chromium-based browser** (Google Chrome, Microsoft Edge, Brave, Arc, Opera, Vivaldi, etc.) with Manifest V3 support.
 
 ### Steps to Install Locally
 
@@ -49,13 +62,13 @@ Move seamlessly between tabs, create new ones, close background tabs, and snap t
    git clone https://github.com/ArnavSawant26/TabDock.git
    ```
 
-2. **Open Extension Management in Chrome**
-   - Navigate to `chrome://extensions/` in your browser address bar.
-   - Enable **Developer mode** toggle in the top-right corner.
+2. **Open Extension Management in your Browser**
+   - **Chrome / Brave / Arc / Opera / Vivaldi:** Navigate to `chrome://extensions/` (or `brave://extensions/`, `edge://extensions/`) in your address bar.
+   - Enable the **Developer mode** toggle (usually in the top-right corner).
 
 3. **Load Unpacked Extension**
-   - Click the **"Load unpacked"** button in the top-left corner.
-   - Select the `TabDock` root folder (where `manifest.json` is located).
+   - Click the **"Load unpacked"** button.
+   - Select the `TabDock` root directory (where `manifest.json` is located).
 
 4. **Start Using TabDock**
    - Open any website (e.g. `https://github.com` or `https://google.com`).
