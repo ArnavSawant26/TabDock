@@ -2,17 +2,17 @@
   function mount(shadow, bridge) {
     const $ = (id) => shadow.getElementById(id);
 
-    const shell = shadow.querySelector('.ftm-shell');
+    const shell = shadow.querySelector(".ftm-shell");
 
-    const edge = $('edgeZone');
-    const sidebar = $('sidebar');
-    const scroll = $('tabScroll');
+    const edge = $("edgeZone");
+    const sidebar = $("sidebar");
+    const scroll = $("tabScroll");
 
-    const track = $('sliderTrack');
-    const thumb = $('sliderThumb');
+    const track = $("sliderTrack");
+    const thumb = $("sliderThumb");
 
-    const add = $('addBtn');
-    const dragHandle = $('dragHandle');
+    const add = $("addBtn");
+    const dragHandle = $("dragHandle");
 
     let hideTimer;
     let draggingSlider = false;
@@ -31,29 +31,31 @@
 
     let retainOpenUntil = 0;
 
-    let currentPosition = 'left';
+    let currentPosition = "left";
 
+    let keyboardNavigation = false;
+    let keyboardIndex = -1;
+
+    // When a keyboard action (or New Tab) closes the dock, keep it
+    // suppressed until the user deliberately re-enters the edge trigger.
+    let suppressHoverUntilTrigger = false;
 
     /* =====================================================
        ERROR HANDLING
        ===================================================== */
 
     const reportError = (error) => {
-      const msg = error?.message || String(error || '');
+      const msg = error?.message || String(error || "");
 
       if (
-        msg.includes('Receiving end does not exist') ||
-        msg.includes('message port closed')
+        msg.includes("Receiving end does not exist") ||
+        msg.includes("message port closed")
       ) {
         return;
       }
 
-      console.debug(
-        'Fullscreen Tab Manager:',
-        msg
-      );
+      console.debug("Fullscreen Tab Manager:", msg);
     };
-
 
     /* =====================================================
        DOCK HOVER
@@ -62,25 +64,21 @@
     const isHoveringDock = () => {
       try {
         return Boolean(
-          shell.matches(':hover') ||
-          sidebar.matches(':hover') ||
-          edge.matches(':hover')
+          shell.matches(":hover") ||
+          sidebar.matches(":hover") ||
+          edge.matches(":hover"),
         );
       } catch (e) {
         return false;
       }
     };
 
-
     /* =====================================================
        POSITION
        ===================================================== */
 
     const setPosition = (pos) => {
-      currentPosition =
-        (pos === 'right' || pos === 'bottom')
-          ? pos
-          : 'left';
+      currentPosition = pos === "right" || pos === "bottom" ? pos : "left";
 
       shell.dataset.position = currentPosition;
 
@@ -91,15 +89,11 @@
 
         const activeCoord =
           pointerCoord ??
-          (
-            scroll.matches(':hover')
-              ? (
-                  currentPosition === 'bottom'
-                    ? lastWindowX
-                    : lastWindowY
-                )
-              : null
-          );
+          (scroll.matches(":hover")
+            ? currentPosition === "bottom"
+              ? lastWindowX
+              : lastWindowY
+            : null);
 
         if (activeCoord !== null) {
           applyDockEffect(activeCoord);
@@ -107,90 +101,72 @@
       });
     };
 
-
     /* =====================================================
        SLIDER
        ===================================================== */
 
     const refreshSlider = () => {
-      if (currentPosition === 'bottom') {
+      if (currentPosition === "bottom") {
         const tw = track.clientWidth;
         const cw = scroll.scrollWidth;
         const vw = scroll.clientWidth;
 
-        if (
-          cw <= vw + 1 ||
-          !tw
-        ) {
-          track.style.opacity = '0';
+        if (cw <= vw + 1 || !tw) {
+          track.style.opacity = "0";
           return;
         }
 
-        track.style.opacity = '1';
+        track.style.opacity = "1";
 
-        const w = Math.max(
-          24,
-          (vw / cw) * tw
-        );
+        const w = Math.max(24, (vw / cw) * tw);
 
         const max = cw - vw;
 
         thumb.style.width = `${w}px`;
 
-        thumb.style.left =
-          `${(scroll.scrollLeft / max) * (tw - w)}px`;
+        thumb.style.left = `${(scroll.scrollLeft / max) * (tw - w)}px`;
 
-        thumb.style.height = '';
-        thumb.style.top = '';
-
+        thumb.style.height = "";
+        thumb.style.top = "";
       } else {
         const th = track.clientHeight;
         const ch = scroll.scrollHeight;
         const vh = scroll.clientHeight;
 
-        if (
-          ch <= vh + 1 ||
-          !th
-        ) {
-          track.style.opacity = '0';
+        if (ch <= vh + 1 || !th) {
+          track.style.opacity = "0";
           return;
         }
 
-        track.style.opacity = '1';
+        track.style.opacity = "1";
 
-        const h = Math.max(
-          24,
-          (vh / ch) * th
-        );
+        const h = Math.max(24, (vh / ch) * th);
 
         const max = ch - vh;
 
         thumb.style.height = `${h}px`;
 
-        thumb.style.top =
-          `${(scroll.scrollTop / max) * (th - h)}px`;
+        thumb.style.top = `${(scroll.scrollTop / max) * (th - h)}px`;
 
-        thumb.style.width = '';
-        thumb.style.left = '';
+        thumb.style.width = "";
+        thumb.style.left = "";
       }
     };
-
 
     /* =====================================================
        BOTTOM DOCK TAB FITTING
        ===================================================== */
 
     const fitBottomDockToTabs = () => {
-      if (currentPosition !== 'bottom') {
-        scroll.style.width = '';
+      if (currentPosition !== "bottom") {
+        scroll.style.width = "";
         return;
       }
 
-      const tabs =
-        scroll.querySelectorAll('.tab-item');
+      const tabs = scroll.querySelectorAll(".tab-item");
 
       if (!tabs.length) {
-        scroll.style.width = '';
+        scroll.style.width = "";
         return;
       }
 
@@ -208,14 +184,10 @@
        * Some space is intentionally reserved for
        * the drag handle, divider and add button.
        */
-      const maxAvailable =
-        Math.max(
-          tabSize,
-          Math.min(
-            window.innerWidth - 100,
-            760
-          )
-        );
+      const maxAvailable = Math.max(
+        tabSize,
+        Math.min(window.innerWidth - 100, 760),
+      );
 
       /*
        * Every tab slot is:
@@ -226,54 +198,34 @@
        * =
        * 54px
        */
-      const maxVisibleTabs =
-        Math.max(
-          1,
-          Math.floor(
-            (
-              maxAvailable -
-              horizontalPadding +
-              gap
-            ) /
-            (tabSize + gap)
-          )
-        );
+      const maxVisibleTabs = Math.max(
+        1,
+        Math.floor((maxAvailable - horizontalPadding + gap) / (tabSize + gap)),
+      );
 
       /*
        * Never create space for a partial tab.
        */
-      const visibleTabs =
-        Math.min(
-          tabs.length,
-          maxVisibleTabs
-        );
+      const visibleTabs = Math.min(tabs.length, maxVisibleTabs);
 
       const width =
         visibleTabs * tabSize +
-        Math.max(
-          0,
-          visibleTabs - 1
-        ) * gap +
+        Math.max(0, visibleTabs - 1) * gap +
         horizontalPadding;
 
-      scroll.style.width =
-        `${width}px`;
+      scroll.style.width = `${width}px`;
     };
-
 
     /* =====================================================
        MAGNIFICATION RESET
        ===================================================== */
 
     const resetDockEffect = () => {
-      scroll
-        .querySelectorAll('.tab-item')
-        .forEach((item) => {
-          item.style.transform = '';
-          item.style.zIndex = '';
-        });
+      scroll.querySelectorAll(".tab-item").forEach((item) => {
+        item.style.transform = "";
+        item.style.zIndex = "";
+      });
     };
-
 
     /* =====================================================
        MAGNIFICATION
@@ -285,167 +237,122 @@
         return;
       }
 
-      scroll
-        .querySelectorAll('.tab-item')
-        .forEach((item) => {
-          const r =
-            item.getBoundingClientRect();
+      scroll.querySelectorAll(".tab-item").forEach((item) => {
+        const r = item.getBoundingClientRect();
 
-          let t = 0;
+        let t = 0;
 
-          if (currentPosition === 'bottom') {
-            t =
-              Math.max(
-                0,
-                1 -
-                Math.abs(
-                  coord -
-                  (r.left + r.width / 2)
-                ) /
-                60
-              );
+        if (currentPosition === "bottom") {
+          t = Math.max(0, 1 - Math.abs(coord - (r.left + r.width / 2)) / 60);
 
-            item.style.transform =
-              `translateY(${-6 * t}px) scale(${1 + .38 * t})`;
+          item.style.transform = `translateY(${-6 * t}px) scale(${1 + 0.38 * t})`;
+        } else if (currentPosition === "right") {
+          t = Math.max(0, 1 - Math.abs(coord - (r.top + r.height / 2)) / 60);
 
-          } else if (currentPosition === 'right') {
-            t =
-              Math.max(
-                0,
-                1 -
-                Math.abs(
-                  coord -
-                  (r.top + r.height / 2)
-                ) /
-                60
-              );
+          item.style.transform = `translateX(${-6 * t}px) scale(${1 + 0.38 * t})`;
+        } else {
+          t = Math.max(0, 1 - Math.abs(coord - (r.top + r.height / 2)) / 60);
 
-            item.style.transform =
-              `translateX(${-6 * t}px) scale(${1 + .38 * t})`;
+          item.style.transform = `translateX(${6 * t}px) scale(${1 + 0.38 * t})`;
+        }
 
-          } else {
-            t =
-              Math.max(
-                0,
-                1 -
-                Math.abs(
-                  coord -
-                  (r.top + r.height / 2)
-                ) /
-                60
-              );
-
-            item.style.transform =
-              `translateX(${6 * t}px) scale(${1 + .38 * t})`;
-          }
-
-          item.style.zIndex =
-            t > .5
-              ? '5'
-              : '1';
-        });
+        item.style.zIndex = t > 0.5 ? "5" : "1";
+      });
     };
 
+    const isNearBrowserEdge = (event) => {
+      const threshold = 24;
+
+      if (currentPosition === "left") {
+        return event.clientX <= threshold;
+      }
+
+      if (currentPosition === "right") {
+        return event.clientX >= window.innerWidth - threshold;
+      }
+
+      return event.clientY >= window.innerHeight - threshold;
+    };
+
+    const applyEdgeAwareDockEffect = (event = null) => {
+      const rect = scroll.getBoundingClientRect();
+
+      const x = event?.clientX ?? lastWindowX ?? rect.left;
+
+      const y = event?.clientY ?? lastWindowY ?? rect.top;
+
+      const coord =
+        currentPosition === "bottom"
+          ? Math.max(rect.left, Math.min(x, rect.right))
+          : Math.max(rect.top, Math.min(y, rect.bottom));
+
+      applyDockEffect(coord);
+    };
 
     /* =====================================================
        TAB FALLBACK
        ===================================================== */
 
     const initialFor = (title) =>
-      (title || 'T')
-        .trim()
-        .charAt(0)
-        .toUpperCase() || 'T';
-
+      (title || "T").trim().charAt(0).toUpperCase() || "T";
 
     /* =====================================================
        CREATE TAB
        ===================================================== */
 
     function createTabElement(tab) {
-      const item =
-        document.createElement('div');
+      const item = document.createElement("div");
 
-      item.className = 'tab-item';
+      item.className = "tab-item";
 
-      item.dataset.id =
-        String(tab.id);
+      item.dataset.id = String(tab.id);
 
       item._tab = tab;
 
-
       /* Tab button */
 
-      const button =
-        document.createElement('button');
+      const button = document.createElement("button");
 
-      button.className =
-        `tab${tab.active ? ' active' : ''}`;
+      button.className = `tab${tab.active ? " active" : ""}`;
 
-      button.type = 'button';
+      button.type = "button";
 
-      button.dataset.id =
-        String(tab.id);
+      button.dataset.id = String(tab.id);
 
-      button.title =
-        tab.title;
+      button.title = tab.title;
 
-      button.setAttribute(
-        'role',
-        'tab'
-      );
+      button.setAttribute("role", "tab");
 
-      button.setAttribute(
-        'aria-label',
-        tab.title
-      );
+      button.setAttribute("aria-label", tab.title);
 
-      button.setAttribute(
-        'aria-selected',
-        String(tab.active)
-      );
+      button.setAttribute("aria-selected", String(tab.active));
 
-      button.innerHTML =
-        `<span class="tab-fallback" aria-hidden="true">${initialFor(tab.title)}</span><span class="tab-dot"></span>`;
-
+      button.innerHTML = `<span class="tab-fallback" aria-hidden="true">${initialFor(tab.title)}</span><span class="tab-dot"></span>`;
 
       /* Favicon */
 
       if (tab.favIconUrl) {
-        const favicon =
-          document.createElement('img');
+        const favicon = document.createElement("img");
 
-        favicon.className =
-          'tab-favicon';
+        favicon.className = "tab-favicon";
 
-        favicon.alt = '';
+        favicon.alt = "";
 
-        favicon.src =
-          tab.favIconUrl;
+        favicon.src = tab.favIconUrl;
 
         const markFavicon = () => {
           if (favicon.naturalWidth > 0) {
-            button.classList.add(
-              'has-favicon'
-            );
+            button.classList.add("has-favicon");
           }
         };
 
-        favicon.addEventListener(
-          'load',
-          markFavicon
-        );
+        favicon.addEventListener("load", markFavicon);
 
-        favicon.addEventListener(
-          'error',
-          () => {
-            favicon.remove();
+        favicon.addEventListener("error", () => {
+          favicon.remove();
 
-            button.classList.remove(
-              'has-favicon'
-            );
-          }
-        );
+          button.classList.remove("has-favicon");
+        });
 
         if (favicon.complete) {
           markFavicon();
@@ -454,288 +361,167 @@
         button.prepend(favicon);
       }
 
-
       /* Activate tab */
 
-      button.addEventListener(
-        'click',
-        (e) => {
-          e.stopPropagation();
+      button.addEventListener("click", (e) => {
+        e.stopPropagation();
 
-          const currentTab =
-            item._tab || tab;
+        const currentTab = item._tab || tab;
 
-          if (currentTab.active) {
-            return;
-          }
-
-          retainOpenUntil =
-            Date.now() + 1000;
-
-          bridge
-            .activateTab(currentTab.id)
-            .catch(reportError);
+        if (currentTab.active) {
+          return;
         }
-      );
 
+        retainOpenUntil = Date.now() + 1000;
+
+        bridge.activateTab(currentTab.id).catch(reportError);
+      });
 
       /* Close button */
 
-      const close =
-        document.createElement('button');
+      const close = document.createElement("button");
 
-      close.className =
-        'tab-close';
+      close.className = "tab-close";
 
-      close.type = 'button';
+      close.type = "button";
 
-      close.title =
-        `Close ${tab.title}`;
+      close.title = `Close ${tab.title}`;
 
-      close.setAttribute(
-        'aria-label',
-        `Close ${tab.title}`
-      );
+      close.setAttribute("aria-label", `Close ${tab.title}`);
 
-      close.textContent = '×';
+      close.textContent = "×";
 
-      close.addEventListener(
-        'click',
-        (event) => {
-          event.stopPropagation();
+      close.addEventListener("click", (event) => {
+        event.stopPropagation();
 
-          const currentTab =
-            item._tab || tab;
+        const currentTab = item._tab || tab;
 
-          bridge
-            .closeTab(currentTab.id)
-            .catch(reportError);
-        }
-      );
+        bridge.closeTab(currentTab.id).catch(reportError);
+      });
 
-
-      item.append(
-        button,
-        close
-      );
+      item.append(button, close);
 
       return item;
     }
-
 
     /* =====================================================
        UPDATE EXISTING TAB
        ===================================================== */
 
     function updateTabElement(item, tab) {
-      item.dataset.id =
-        String(tab.id);
+      item.dataset.id = String(tab.id);
 
       item._tab = tab;
 
-      const button =
-        item.querySelector('.tab');
+      const button = item.querySelector(".tab");
 
       if (!button) {
         return;
       }
 
-      button.className =
-        `tab${tab.active ? ' active' : ''}`;
+      button.className = `tab${tab.active ? " active" : ""}`;
 
-      button.title =
-        tab.title;
+      button.title = tab.title;
 
-      button.setAttribute(
-        'aria-label',
-        tab.title
-      );
+      button.setAttribute("aria-label", tab.title);
 
-      button.setAttribute(
-        'aria-selected',
-        String(tab.active)
-      );
+      button.setAttribute("aria-selected", String(tab.active));
 
-
-      const fallback =
-        button.querySelector(
-          '.tab-fallback'
-        );
+      const fallback = button.querySelector(".tab-fallback");
 
       if (fallback) {
-        fallback.textContent =
-          initialFor(tab.title);
+        fallback.textContent = initialFor(tab.title);
       }
 
-
-      let favicon =
-        button.querySelector(
-          '.tab-favicon'
-        );
-
+      let favicon = button.querySelector(".tab-favicon");
 
       if (tab.favIconUrl) {
         if (!favicon) {
-          favicon =
-            document.createElement('img');
+          favicon = document.createElement("img");
 
-          favicon.className =
-            'tab-favicon';
+          favicon.className = "tab-favicon";
 
-          favicon.alt = '';
+          favicon.alt = "";
 
           const markFavicon = () => {
-            if (
-              favicon.naturalWidth > 0
-            ) {
-              button.classList.add(
-                'has-favicon'
-              );
+            if (favicon.naturalWidth > 0) {
+              button.classList.add("has-favicon");
             }
           };
 
-          favicon.addEventListener(
-            'load',
-            markFavicon
-          );
+          favicon.addEventListener("load", markFavicon);
 
-          favicon.addEventListener(
-            'error',
-            () => {
-              favicon.remove();
+          favicon.addEventListener("error", () => {
+            favicon.remove();
 
-              button.classList.remove(
-                'has-favicon'
-              );
-            }
-          );
+            button.classList.remove("has-favicon");
+          });
 
           button.prepend(favicon);
         }
 
+        if (favicon.src !== tab.favIconUrl) {
+          button.classList.remove("has-favicon");
 
-        if (
-          favicon.src !==
-          tab.favIconUrl
-        ) {
-          button.classList.remove(
-            'has-favicon'
-          );
-
-          favicon.src =
-            tab.favIconUrl;
+          favicon.src = tab.favIconUrl;
         }
 
-
-        if (
-          favicon.complete &&
-          favicon.naturalWidth > 0
-        ) {
-          button.classList.add(
-            'has-favicon'
-          );
+        if (favicon.complete && favicon.naturalWidth > 0) {
+          button.classList.add("has-favicon");
         }
-
       } else if (favicon) {
         favicon.remove();
 
-        button.classList.remove(
-          'has-favicon'
-        );
+        button.classList.remove("has-favicon");
       }
     }
-
 
     /* =====================================================
        RENDER TABS
        ===================================================== */
 
     function renderTabs(tabs) {
-      const sorted =
-        [...tabs].sort(
-          (a, b) =>
-            a.index - b.index
-        );
+      const sorted = [...tabs].sort((a, b) => a.index - b.index);
 
+      const priorScrollTop = scroll.scrollTop;
 
-      const priorScrollTop =
-        scroll.scrollTop;
+      const priorScrollLeft = scroll.scrollLeft;
 
-      const priorScrollLeft =
-        scroll.scrollLeft;
+      const existingMap = new Map();
 
-
-      const existingMap =
-        new Map();
-
-
-      Array
-        .from(scroll.children)
-        .forEach((child) => {
-          if (child.dataset.id) {
-            existingMap.set(
-              child.dataset.id,
-              child
-            );
-          }
-        });
-
-
-      const newChildren =
-        sorted.map((tab) => {
-          const idStr =
-            String(tab.id);
-
-          if (
-            existingMap.has(idStr)
-          ) {
-            const item =
-              existingMap.get(idStr);
-
-            existingMap.delete(idStr);
-
-            updateTabElement(
-              item,
-              tab
-            );
-
-            return item;
-          }
-
-          return createTabElement(
-            tab
-          );
-        });
-
-
-      existingMap.forEach(
-        (child) =>
-          child.remove()
-      );
-
-
-      newChildren.forEach(
-        (child, idx) => {
-          if (
-            scroll.children[idx] !==
-            child
-          ) {
-            scroll.insertBefore(
-              child,
-              scroll.children[idx] ||
-                null
-            );
-          }
+      Array.from(scroll.children).forEach((child) => {
+        if (child.dataset.id) {
+          existingMap.set(child.dataset.id, child);
         }
-      );
+      });
 
+      const newChildren = sorted.map((tab) => {
+        const idStr = String(tab.id);
 
-      scroll.scrollTop =
-        priorScrollTop;
+        if (existingMap.has(idStr)) {
+          const item = existingMap.get(idStr);
 
-      scroll.scrollLeft =
-        priorScrollLeft;
+          existingMap.delete(idStr);
 
+          updateTabElement(item, tab);
+
+          return item;
+        }
+
+        return createTabElement(tab);
+      });
+
+      existingMap.forEach((child) => child.remove());
+
+      newChildren.forEach((child, idx) => {
+        if (scroll.children[idx] !== child) {
+          scroll.insertBefore(child, scroll.children[idx] || null);
+        }
+      });
+
+      scroll.scrollTop = priorScrollTop;
+
+      scroll.scrollLeft = priorScrollLeft;
 
       requestAnimationFrame(() => {
         fitBottomDockToTabs();
@@ -744,82 +530,164 @@
 
         const activeCoord =
           pointerCoord ??
-          (
-            scroll.matches(':hover')
-              ? (
-                  currentPosition === 'bottom'
-                    ? lastWindowX
-                    : lastWindowY
-                )
-              : null
-          );
+          (scroll.matches(":hover")
+            ? currentPosition === "bottom"
+              ? lastWindowX
+              : lastWindowY
+            : null);
 
         if (activeCoord !== null) {
-          applyDockEffect(
-            activeCoord
-          );
+          applyDockEffect(activeCoord);
         }
       });
     }
 
+    /* =====================================================
+       KEYBOARD NAVIGATION
+       ===================================================== */
+
+    const getTabItems = () => Array.from(scroll.querySelectorAll(".tab-item"));
+
+    const clearKeyboardSelection = () => {
+      getTabItems().forEach((item) => {
+        item.classList.remove("keyboard-selected");
+      });
+    };
+
+    const updateKeyboardSelection = () => {
+      const items = getTabItems();
+
+      if (!items.length) {
+        keyboardIndex = -1;
+        return;
+      }
+
+      keyboardIndex = Math.max(0, Math.min(keyboardIndex, items.length - 1));
+
+      clearKeyboardSelection();
+
+      const selected = items[keyboardIndex];
+
+      selected.classList.add("keyboard-selected");
+
+      selected.scrollIntoView({
+        behavior: "smooth",
+        block: currentPosition === "bottom" ? "nearest" : "center",
+        inline: currentPosition === "bottom" ? "center" : "nearest",
+      });
+    };
+
+    const openKeyboardNavigation = () => {
+      const items = getTabItems();
+
+      if (!items.length) {
+        return;
+      }
+
+      // Explicit keyboard trigger always overrides the suppressed state.
+      suppressHoverUntilTrigger = false;
+      keyboardNavigation = true;
+
+      const activeIndex = items.findIndex((item) =>
+        item.querySelector(".tab")?.classList.contains("active"),
+      );
+
+      keyboardIndex = activeIndex >= 0 ? activeIndex : 0;
+
+      openSidebar();
+
+      updateKeyboardSelection();
+    };
+
+    const closeKeyboardNavigation = () => {
+      keyboardNavigation = false;
+      keyboardIndex = -1;
+      suppressHoverUntilTrigger = true;
+
+      clearKeyboardSelection();
+
+      shell.classList.remove("sidebar-open");
+
+      bridge.setDockOpen(false).catch(reportError);
+    };
+
+    const activateKeyboardTab = () => {
+      const items = getTabItems();
+
+      if (keyboardIndex < 0 || keyboardIndex >= items.length) {
+        return;
+      }
+
+      const tab = items[keyboardIndex]._tab;
+
+      if (!tab) {
+        return;
+      }
+
+      /*
+       * Close FIRST, then activate the tab.
+       * This prevents the tab-activation event from seeing the dock
+       * as open. The background worker also no longer re-opens the
+       * dock during activate-tab.
+       */
+      hideDockImmediately();
+
+      bridge.activateTab(tab.id).catch(reportError);
+    };
 
     /* =====================================================
        OPEN / CLOSE
        ===================================================== */
 
-    const setDockOpen = (open) => {
-      const shouldBeOpen =
-        Boolean(open);
+    const setDockOpen = (open, forceClose = false) => {
+      const shouldBeOpen = Boolean(open);
 
       if (
         !shouldBeOpen &&
-        (
-          document.hidden ||
-          isHoveringDock() ||
-          isDraggingDock
-        )
+        !forceClose &&
+        (document.hidden || isHoveringDock() || isDraggingDock)
       ) {
         return;
       }
 
-      shell.classList.toggle(
-        'sidebar-open',
-        shouldBeOpen
-      );
+      shell.classList.toggle("sidebar-open", shouldBeOpen);
     };
-
 
     const openSidebar = () => {
-      clearTimeout(hideTimer);
-
-      if (
-        !shell.classList.contains(
-          'sidebar-open'
-        )
-      ) {
-        shell.classList.add(
-          'sidebar-open'
-        );
-
-        bridge
-          .setDockOpen(true)
-          .catch(reportError);
-      }
-    };
-
-
-    const scheduleClose = () => {
-      if (
-        document.hidden ||
-        isDraggingDock
-      ) {
+      // A keyboard selection/New Tab can explicitly close the dock.
+      // Do not let the still-hovering mouse immediately reopen it.
+      if (suppressHoverUntilTrigger) {
         return;
       }
 
-      if (
-        Date.now() <
-        retainOpenUntil
-      ) {
+      clearTimeout(hideTimer);
+
+      if (!shell.classList.contains("sidebar-open")) {
+        shell.classList.add("sidebar-open");
+
+        bridge.setDockOpen(true).catch(reportError);
+      }
+    };
+
+    const hideDockImmediately = () => {
+      keyboardNavigation = false;
+      keyboardIndex = -1;
+      suppressHoverUntilTrigger = true;
+
+      clearKeyboardSelection();
+      clearTimeout(hideTimer);
+
+      shell.classList.remove("sidebar-open");
+
+      bridge.setDockOpen(false).catch(reportError);
+    };
+
+    const scheduleClose = () => {
+      if (document.hidden || isDraggingDock) {
+        return;
+      }
+
+      if (Date.now() < retainOpenUntil) {
         return;
       }
 
@@ -829,264 +697,237 @@
 
       clearTimeout(hideTimer);
 
-      hideTimer =
-        setTimeout(() => {
-          if (
-            document.hidden ||
-            isDraggingDock
-          ) {
-            return;
-          }
+      hideTimer = setTimeout(() => {
+        if (document.hidden || isDraggingDock) {
+          return;
+        }
 
-          if (isHoveringDock()) {
-            return;
-          }
+        if (isHoveringDock()) {
+          return;
+        }
 
-          shell.classList.remove(
-            'sidebar-open'
-          );
+        shell.classList.remove("sidebar-open");
 
-          bridge
-            .setDockOpen(false)
-            .catch(reportError);
-        }, 150);
+        bridge.setDockOpen(false).catch(reportError);
+      }, 150);
     };
-
 
     /* =====================================================
        DOCK REPOSITIONING
        ===================================================== */
 
-    const dropZones =
-      Array.from(
-        shadow.querySelectorAll(
-          '.drop-zone'
-        )
-      );
-
+    const dropZones = Array.from(shadow.querySelectorAll(".drop-zone"));
 
     const startDockDrag = () => {
       isDraggingDock = true;
 
-      shell.classList.add(
-        'dock-dragging'
-      );
+      shell.classList.add("dock-dragging");
 
       clearTimeout(hideTimer);
 
-
-      let targetPos =
-        currentPosition;
-
+      let targetPos = currentPosition;
 
       const onPointerMove = (e) => {
-        let minDistance =
-          Infinity;
+        let minDistance = Infinity;
 
-        let bestTarget =
-          targetPos;
+        let bestTarget = targetPos;
 
+        dropZones.forEach((zone) => {
+          const rect = zone.getBoundingClientRect();
 
-        dropZones.forEach(
-          (zone) => {
-            const rect =
-              zone.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
 
-            const centerX =
-              rect.left +
-              rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
 
-            const centerY =
-              rect.top +
-              rect.height / 2;
+          const dist = Math.hypot(e.clientX - centerX, e.clientY - centerY);
 
-            const dist =
-              Math.hypot(
-                e.clientX - centerX,
-                e.clientY - centerY
-              );
+          if (dist < minDistance) {
+            minDistance = dist;
 
-            if (
-              dist < minDistance
-            ) {
-              minDistance =
-                dist;
-
-              bestTarget =
-                zone.dataset.target;
-            }
+            bestTarget = zone.dataset.target;
           }
-        );
+        });
 
+        dropZones.forEach((zone) => {
+          zone.classList.toggle(
+            "active-drop",
+            zone.dataset.target === bestTarget,
+          );
+        });
 
-        dropZones.forEach(
-          (zone) => {
-            zone.classList.toggle(
-              'active-drop',
-              zone.dataset.target ===
-                bestTarget
-            );
-          }
-        );
-
-
-        targetPos =
-          bestTarget;
+        targetPos = bestTarget;
       };
 
-
       const onPointerUp = () => {
-        window.removeEventListener(
-          'pointermove',
-          onPointerMove
-        );
+        window.removeEventListener("pointermove", onPointerMove);
 
-        window.removeEventListener(
-          'pointerup',
-          onPointerUp
-        );
-
+        window.removeEventListener("pointerup", onPointerUp);
 
         isDraggingDock = false;
 
-        shell.classList.remove(
-          'dock-dragging'
-        );
+        shell.classList.remove("dock-dragging");
 
+        dropZones.forEach((z) => z.classList.remove("active-drop"));
 
-        dropZones.forEach(
-          (z) =>
-            z.classList.remove(
-              'active-drop'
-            )
-        );
+        if (targetPos && targetPos !== currentPosition) {
+          setPosition(targetPos);
 
-
-        if (
-          targetPos &&
-          targetPos !==
-            currentPosition
-        ) {
-          setPosition(
-            targetPos
-          );
-
-          bridge
-            .setPosition(targetPos)
-            .catch(reportError);
+          bridge.setPosition(targetPos).catch(reportError);
         }
       };
 
+      window.addEventListener("pointermove", onPointerMove);
 
-      window.addEventListener(
-        'pointermove',
-        onPointerMove
-      );
-
-      window.addEventListener(
-        'pointerup',
-        onPointerUp
-      );
+      window.addEventListener("pointerup", onPointerUp);
     };
 
-
     if (dragHandle) {
-      dragHandle.addEventListener(
-        'pointerdown',
-        (e) => {
-          e.preventDefault();
+      dragHandle.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
 
-          startDockDrag();
-        }
-      );
+        startDockDrag();
+      });
     }
-
 
     /* =====================================================
        OPEN / CLOSE EVENTS
        ===================================================== */
 
-    edge.addEventListener(
-      'mouseenter',
-      openSidebar
-    );
+    edge.addEventListener("mouseenter", () => {
+      // Re-entering the actual trigger explicitly re-arms the dock.
+      suppressHoverUntilTrigger = false;
+      openSidebar();
+    });
 
-    edge.addEventListener(
-      'mouseleave',
-      (event) => {
-        if (
-          !sidebar.contains(
-            event.relatedTarget
-          ) &&
-          !isHoveringDock()
-        ) {
-          scheduleClose();
-        }
+    edge.addEventListener("mouseleave", (event) => {
+      if (!sidebar.contains(event.relatedTarget) && !isHoveringDock()) {
+        scheduleClose();
       }
-    );
+    });
 
+    sidebar.addEventListener("mouseenter", openSidebar);
 
-    sidebar.addEventListener(
-      'mouseenter',
-      openSidebar
-    );
-
-    sidebar.addEventListener(
-      'mouseleave',
-      () => {
-        if (!isHoveringDock()) {
-          scheduleClose();
-        }
+    sidebar.addEventListener("mouseleave", () => {
+      if (!isHoveringDock()) {
+        scheduleClose();
       }
-    );
-
+    });
 
     /* =====================================================
        MOUSE POSITION / MAGNIFICATION
        ===================================================== */
 
     window.addEventListener(
-      'mousemove',
+      "mousemove",
       (event) => {
-        lastWindowX =
-          event.clientX;
+        lastWindowX = event.clientX;
+        lastWindowY = event.clientY;
 
-        lastWindowY =
-          event.clientY;
+        const overScroll = scroll.matches(":hover");
+        const nearViewportEdge = isNearBrowserEdge(event);
 
-        if (
-          scroll.matches(':hover')
-        ) {
+        if (overScroll) {
           pointerCoord =
-            currentPosition === 'bottom'
-              ? event.clientX
-              : event.clientY;
+            currentPosition === "bottom" ? event.clientX : event.clientY;
 
-          applyDockEffect(
-            pointerCoord
-          );
+          applyDockEffect(pointerCoord);
+          return;
+        }
+
+        /*
+         * IMPORTANT: the browser viewport is the real boundary.
+         * Once the pointer leaves the dock itself, :hover is lost,
+         * so the old implementation stopped updating magnification.
+         * While the dock is open, continue following the pointer when
+         * it is inside the edge band. This makes the browser edge
+         * behave like a continuation of the dock's hover area.
+         */
+        if (shell.classList.contains("sidebar-open") && nearViewportEdge) {
+          pointerCoord =
+            currentPosition === "bottom" ? event.clientX : event.clientY;
+
+          applyDockEffect(pointerCoord);
         }
       },
-      { passive:true }
+      { passive: true },
     );
-
 
     /* =====================================================
        ADD TAB
        ===================================================== */
 
-    add.addEventListener(
-      'click',
-      () => {
-        retainOpenUntil =
-          Date.now() + 1000;
+    add.addEventListener("click", () => {
+      /* Close before creating the tab so the tab-created/activated
+       * synchronization cannot briefly reopen the dock. */
+      hideDockImmediately();
 
-        bridge
-          .createTab()
-          .catch(reportError);
+      bridge.createTab().catch(reportError);
+    });
+
+    /* =====================================================
+       KEYBOARD SHORTCUT / NAVIGATION
+       ===================================================== */
+
+    window.addEventListener("keydown", (event) => {
+      if (event.ctrlKey && event.shiftKey && event.code === "Space") {
+        event.preventDefault();
+        openKeyboardNavigation();
+        return;
       }
-    );
 
+      if (!keyboardNavigation) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeKeyboardNavigation();
+        return;
+      }
+
+      if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+        event.preventDefault();
+
+        const count = getTabItems().length;
+
+        if (!count) {
+          return;
+        }
+
+        keyboardIndex--;
+
+        if (keyboardIndex < 0) {
+          keyboardIndex = count - 1;
+        }
+
+        updateKeyboardSelection();
+        return;
+      }
+
+      if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+        event.preventDefault();
+
+        const count = getTabItems().length;
+
+        if (!count) {
+          return;
+        }
+
+        keyboardIndex++;
+
+        if (keyboardIndex >= count) {
+          keyboardIndex = 0;
+        }
+
+        updateKeyboardSelection();
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        activateKeyboardTab();
+      }
+    });
 
     /* =====================================================
        NATIVE TRACKPAD / MOUSE SCROLLING
@@ -1102,269 +943,161 @@
      * with complete tabs.
      */
 
-
     /* =====================================================
        POINTER MAGNIFICATION
        ===================================================== */
 
-    scroll.addEventListener(
-      'mousemove',
-      (event) => {
+    scroll.addEventListener("mousemove", (event) => {
+      pointerCoord =
+        currentPosition === "bottom" ? event.clientX : event.clientY;
+
+      applyDockEffect(pointerCoord);
+    });
+
+    scroll.addEventListener("mouseleave", (event) => {
+      const scrollRect = scroll.getBoundingClientRect();
+
+      const leavingTowardBrowserEdge =
+        currentPosition === "left"
+          ? event.clientX <= scrollRect.left + 10
+          : currentPosition === "right"
+            ? event.clientX >= scrollRect.right - 10
+            : event.clientY >= scrollRect.bottom - 10;
+
+      if (leavingTowardBrowserEdge || isNearBrowserEdge(event)) {
+        /* Keep the last magnification alive at the viewport boundary. */
         pointerCoord =
-          currentPosition === 'bottom'
-            ? event.clientX
-            : event.clientY;
-
-        applyDockEffect(
-          pointerCoord
-        );
-      }
-    );
-
-
-    scroll.addEventListener(
-      'mouseleave',
-      () => {
+          currentPosition === "bottom" ? event.clientX : event.clientY;
+        applyDockEffect(pointerCoord);
+      } else {
         pointerCoord = null;
-
         resetDockEffect();
       }
-    );
-
+    });
 
     /* =====================================================
        SCROLL UPDATE
        ===================================================== */
 
-    scroll.addEventListener(
-      'scroll',
-      () => {
-        refreshSlider();
+    scroll.addEventListener("scroll", () => {
+      refreshSlider();
 
-        if (
-          pointerCoord === null
-        ) {
-          resetDockEffect();
-        } else {
-          applyDockEffect(
-            pointerCoord
-          );
-        }
+      if (pointerCoord === null) {
+        resetDockEffect();
+      } else {
+        applyDockEffect(pointerCoord);
       }
-    );
-
+    });
 
     /* =====================================================
        RESIZE
        ===================================================== */
 
-    new ResizeObserver(
-      () => {
-        fitBottomDockToTabs();
+    new ResizeObserver(() => {
+      fitBottomDockToTabs();
 
-        refreshSlider();
-      }
-    ).observe(scroll);
+      refreshSlider();
+    }).observe(scroll);
 
+    window.addEventListener("resize", () => {
+      fitBottomDockToTabs();
 
-    window.addEventListener(
-      'resize',
-      () => {
-        fitBottomDockToTabs();
-
-        refreshSlider();
-      }
-    );
-
+      refreshSlider();
+    });
 
     /* =====================================================
        SLIDER DRAG
        ===================================================== */
 
-    thumb.addEventListener(
-      'pointerdown',
-      (event) => {
-        draggingSlider = true;
+    thumb.addEventListener("pointerdown", (event) => {
+      draggingSlider = true;
 
-        thumb.classList.add(
-          'dragging'
+      thumb.classList.add("dragging");
+
+      dragStartY = event.clientY;
+
+      dragStartX = event.clientX;
+
+      dragStartTop = scroll.scrollTop;
+
+      dragStartLeft = scroll.scrollLeft;
+
+      thumb.setPointerCapture(event.pointerId);
+    });
+
+    thumb.addEventListener("pointermove", (event) => {
+      if (!draggingSlider) {
+        return;
+      }
+
+      if (currentPosition === "bottom") {
+        const w = Math.max(
+          24,
+          (scroll.clientWidth / scroll.scrollWidth) * track.clientWidth,
         );
 
-        dragStartY =
-          event.clientY;
+        const denominator = track.clientWidth - w;
 
-        dragStartX =
-          event.clientX;
-
-        dragStartTop =
-          scroll.scrollTop;
-
-        dragStartLeft =
-          scroll.scrollLeft;
-
-        thumb.setPointerCapture(
-          event.pointerId
+        if (denominator > 0) {
+          scroll.scrollLeft =
+            dragStartLeft +
+            ((event.clientX - dragStartX) / denominator) *
+            (scroll.scrollWidth - scroll.clientWidth);
+        }
+      } else {
+        const h = Math.max(
+          24,
+          (scroll.clientHeight / scroll.scrollHeight) * track.clientHeight,
         );
-      }
-    );
 
+        const denominator = track.clientHeight - h;
 
-    thumb.addEventListener(
-      'pointermove',
-      (event) => {
-        if (!draggingSlider) {
-          return;
-        }
-
-
-        if (
-          currentPosition === 'bottom'
-        ) {
-          const w =
-            Math.max(
-              24,
-              (
-                scroll.clientWidth /
-                scroll.scrollWidth
-              ) *
-              track.clientWidth
-            );
-
-          const denominator =
-            track.clientWidth -
-            w;
-
-          if (
-            denominator > 0
-          ) {
-            scroll.scrollLeft =
-              dragStartLeft +
-              (
-                (
-                  event.clientX -
-                  dragStartX
-                ) /
-                denominator
-              ) *
-              (
-                scroll.scrollWidth -
-                scroll.clientWidth
-              );
-          }
-
-        } else {
-          const h =
-            Math.max(
-              24,
-              (
-                scroll.clientHeight /
-                scroll.scrollHeight
-              ) *
-              track.clientHeight
-            );
-
-          const denominator =
-            track.clientHeight -
-            h;
-
-          if (
-            denominator > 0
-          ) {
-            scroll.scrollTop =
-              dragStartTop +
-              (
-                (
-                  event.clientY -
-                  dragStartY
-                ) /
-                denominator
-              ) *
-              (
-                scroll.scrollHeight -
-                scroll.clientHeight
-              );
-          }
+        if (denominator > 0) {
+          scroll.scrollTop =
+            dragStartTop +
+            ((event.clientY - dragStartY) / denominator) *
+            (scroll.scrollHeight - scroll.clientHeight);
         }
       }
-    );
+    });
 
+    ["pointerup", "pointercancel"].forEach((eventName) => {
+      thumb.addEventListener(eventName, () => {
+        draggingSlider = false;
 
-    ['pointerup', 'pointercancel']
-      .forEach(
-        (eventName) => {
-          thumb.addEventListener(
-            eventName,
-            () => {
-              draggingSlider = false;
-
-              thumb.classList.remove(
-                'dragging'
-              );
-            }
-          );
-        }
-      );
-
+        thumb.classList.remove("dragging");
+      });
+    });
 
     /* =====================================================
        SLIDER TRACK CLICK
        ===================================================== */
 
-    track.addEventListener(
-      'pointerdown',
-      (event) => {
-        if (
-          event.target === thumb
-        ) {
+    track.addEventListener("pointerdown", (event) => {
+      if (event.target === thumb) {
+        return;
+      }
+
+      if (currentPosition === "bottom") {
+        if (!track.clientWidth) {
           return;
         }
 
-
-        if (
-          currentPosition === 'bottom'
-        ) {
-          if (
-            !track.clientWidth
-          ) {
-            return;
-          }
-
-          scroll.scrollLeft =
-            (
-              (
-                event.clientX -
-                track.getBoundingClientRect().left
-              ) /
-              track.clientWidth
-            ) *
-            (
-              scroll.scrollWidth -
-              scroll.clientWidth
-            );
-
-        } else {
-          if (
-            !track.clientHeight
-          ) {
-            return;
-          }
-
-          scroll.scrollTop =
-            (
-              (
-                event.clientY -
-                track.getBoundingClientRect().top
-              ) /
-              track.clientHeight
-            ) *
-            (
-              scroll.scrollHeight -
-              scroll.clientHeight
-            );
+        scroll.scrollLeft =
+          ((event.clientX - track.getBoundingClientRect().left) /
+            track.clientWidth) *
+          (scroll.scrollWidth - scroll.clientWidth);
+      } else {
+        if (!track.clientHeight) {
+          return;
         }
-      }
-    );
 
+        scroll.scrollTop =
+          ((event.clientY - track.getBoundingClientRect().top) /
+            track.clientHeight) *
+          (scroll.scrollHeight - scroll.clientHeight);
+      }
+    });
 
     /* =====================================================
        INITIALIZATION
@@ -1375,17 +1108,14 @@
       refreshSlider();
     });
 
-
     return {
       renderTabs,
       setDockOpen,
-      setPosition
+      setPosition,
     };
   }
 
-
-  window.FullscreenTabManager.mount =
-    mount;
+  window.FullscreenTabManager.mount = mount;
 
   window.FullscreenTabManager.mountSidebar();
 })();
